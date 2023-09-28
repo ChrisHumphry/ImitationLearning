@@ -99,10 +99,10 @@ class Pepper:
         image = numpy.frombuffer(image_raw[6], numpy.uint8).reshape(image_raw[1], image_raw[0], 3)
         image = cv2.flip(image, 0)
 
-        # if show:
-        #     cv2.imshow("Pepper Camera", image)
-        #     cv2.waitKey(-1)
-        #     cv2.destroyAllWindows()
+        if show:
+            cv2.imshow("Pepper Camera", image)
+            # cv2.waitKey(-1)
+            # cv2.destroyAllWindows()
 
         return image
 
@@ -127,3 +127,37 @@ class Pepper:
             cv2.destroyAllWindows()
 
         return image
+    
+    def move_joint_by_angle(self, joints, angles, fractionMaxSpeed=0.2, blocking=False):
+        """
+        :param joints: list of joint types to be moved according to http://doc.aldebaran.com/2-0/_images/juliet_joints.png
+        :param angles: list of angles for each joint
+        :param fractionMaxSpeed: fraction of the maximum speed for joint motion, i.e. an integer (0-1)
+        """
+        #self.motion_service.setStiffnesses("Head", 1.0)
+        # Example showing how to set angles, using a fraction of max speed
+        self.motion_service.setAngles(joints, angles, fractionMaxSpeed)
+        
+        # TODO: zmena dist
+        
+        if blocking:
+            epsilon = 0.12
+            last_angles = [-100]*len(joints)
+            while True:
+                time.sleep(0.1)
+                now_angles = self.motion_service.getAngles(joints, True)
+                dist = 0
+                change = 0
+                for i in range(len(joints)):
+                    dist += (now_angles[i]-angles[i])**2
+                    change += abs(now_angles[i]-last_angles[i])
+                last_angles = [angle for angle in now_angles]
+                #print("change", change)
+                if dist < 0.15 and change < 0.005:
+                    #print("konec", dist)
+                    break
+        
+        #    print()
+            #self.motion_service.angleInterpolation(joints, angles, len(joints)*[end_time], True);
+        #time.sleep(3.0)
+        #motion_service.setStiffnesses("Head", 0.0)

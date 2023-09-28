@@ -52,7 +52,7 @@ def analyse_image(img):
             peaks[:, 1] = np.where(peaks[:, 1]==0, peaks[:, 1], peaks[:, 1]+y)
             all_hand_peaks.append(peaks)
 
-        is_left_hand_open, is_right_hand_open = util.draw_handpose(all_hand_peaks, False)
+        is_left_hand_open, is_right_hand_open = util.draw_handpose(all_hand_peaks)
         lhand = 100 if is_left_hand_open else 0
         rhand = 100 if is_right_hand_open else 0
         return body_angles, [lhand, rhand]
