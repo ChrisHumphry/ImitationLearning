@@ -35,7 +35,7 @@ def transfer(model, model_weights):
     return transfered_model_weights
 
 # draw the body keypoint and lims
-def draw_bodypose(canvas, candidate, subset):
+def draw_bodypose(candidate, subset):
     body_peaks = []
     for i in range(18):
         for n in range(len(subset)):
@@ -47,11 +47,11 @@ def draw_bodypose(canvas, candidate, subset):
             
     body_angles = []
     if len(body_peaks) > 0:
-        body_angles = angle_detection.get_body_angles(canvas, body_peaks)
+        body_angles = angle_detection.get_body_angles(body_peaks)
 
-    return canvas, body_angles
+    return body_angles
 
-def draw_handpose(canvas, all_hand_peaks, show_number=False):
+def draw_handpose(all_hand_peaks):
     edges = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [0, 9], [9, 10], \
              [10, 11], [11, 12], [0, 13], [13, 14], [14, 15], [15, 16], [0, 17], [17, 18], [18, 19], [19, 20]]
 
@@ -60,7 +60,6 @@ def draw_handpose(canvas, all_hand_peaks, show_number=False):
         for ie, e in enumerate(edges):
             if np.sum(np.all(peaks[e], axis=1)==0)==0:
                 x1, y1 = peaks[e[0]]
-                x2, y2 = peaks[e[1]]
             
                 finger_angles.append(angle_detection.get_finger_angle(e, peaks, edges, x1, y1, True))
 
@@ -71,9 +70,8 @@ def draw_handpose(canvas, all_hand_peaks, show_number=False):
     else:
         is_left_hand_open = False
         is_right_hand_open = False
-    print()
     
-    return canvas, is_left_hand_open, is_right_hand_open
+    return is_left_hand_open, is_right_hand_open
 
 # detect hand according to body pose keypoints
 # please refer to https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/hand/handDetector.cpp

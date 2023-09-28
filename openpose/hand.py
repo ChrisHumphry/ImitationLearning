@@ -71,14 +71,3 @@ class Hand(object):
             y, x = util.npmax(map_ori)
             all_peaks.append([x, y])
         return np.array(all_peaks)
-
-if __name__ == "__main__":
-    hand_estimation = Hand('../model/hand_pose_model.pth')
-
-    # test_image = '../images/hand.jpg'
-    test_image = '../images/hand.jpg'
-    oriImg = cv2.imread(test_image)  # B,G,R order
-    peaks = hand_estimation(oriImg)
-    canvas = util.draw_handpose(oriImg, peaks, True)
-    cv2.imshow('', canvas)
-    cv2.waitKey(0)
