@@ -1,7 +1,7 @@
 import cv2, math
 import numpy as np
 
-def get_body_angles(body_peaks):
+def get_body_angles(canvas, body_peaks, draw = True):
     '''Returns arm angles as a List in this order [LShoulderRoll, LElbowRoll, RShoulderRoll, RElbowRoll] '''
 
     angles = []
@@ -26,6 +26,8 @@ def get_body_angles(body_peaks):
                 if body_peaks_as_array[6][1] - body_peaks_as_array[7][1]  < 0:
                   angle = -1*angle
             angles.append(angle)
+            if draw:
+                cv2.putText(canvas, str(int(angle)) + "deg", (int(x)-20, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         else:
             angles.append(0)
 
@@ -40,6 +42,9 @@ def get_finger_angle(e, peaks, edges, ax, x1, y1, draw = True):
     for ie2, e2 in enumerate(edges):
         if(e != e2):
             angle = get_angle(e, e2, peaks)
+
+            if draw and angle != -1 and not math.isnan(angle):
+                ax.text(x1, y1, str(int(angle)))
 
     return angle
 
