@@ -1,32 +1,22 @@
 import qi
 import numpy
 import cv2
+from qibullet import SimulationManager
 
 class Pepper:
     def __init__(self, ip_address, port=9559):
-        self.session = qi.Session()
-        try:
-            self.session.connect("tcp://" + ip_address + ":" + str(port))
-        except RuntimeError:
-            print ("Can't connect to Naoqi. Please check your script arguments.")
-            return
-        self.posture_service = self.session.service("ALRobotPosture")
-        self.motion_service = self.session.service("ALMotion")
-        self.autonomous_life_service = self.session.service("ALAutonomousLife")
-        self.camera_device = self.session.service("ALVideoDevice")
-
-        self.camera_link = None
-
-        print("[INFO]: Robot is initialized at " + ip_address + ":" + str(port))
+        simulation_manager = SimulationManager()
+        client = simulation_manager.launchSimulation(gui=True, auto_step=False)
+        self.robot = simulation_manager.spawnNao(client, spawn_ground_plane=True)
 
     def stand(self):
         """Get robot into default standing position known as `StandInit` or `Stand`"""
-        self.posture_service.goToPosture("Stand", 1.0)
+        self.robot.goToPosture("Stand", 1.0)
         print("[INFO]: Robot is in default position")
 
     def crouch(self):
         """Get robot into default standing position known as `StandInit` or `Stand`"""
-        self.posture_service.goToPosture("Crouch", 1.0)
+        self.robot.goToPosture("Crouch", 1.0)
     
     def autonomous_life(self):
         """
@@ -65,16 +55,15 @@ class Pepper:
 
         if hand_id:
             if close:
-                self.motion_service.setAngles(hand_id, 0.0, 0.2)
+                self.robot.setAngles(hand_id, 0.0, 0.2)
                 #print("[INFO]: Hand " + hand + "is closed")
             else:
-                self.motion_service.setAngles(hand_id, 1.0, 0.2)
+                self.robot.setAngles(hand_id, 1.0, 0.2)
                 #print("[INFO]: Hand " + hand + "is opened")
         else:
             print("[INFO]: Cannot move a hand")
 
     def subscribe_camera(self, camera, resolution, fps):
-        resolution = 1
         color_space = 11
 
         camera_index = None
@@ -89,8 +78,6 @@ class Pepper:
         
         self.camera_link = self.camera_device.subscribeCamera("Camera_Stream" + str(numpy.random.random()),
                                                               camera_index, resolution, color_space, fps)
-        self.camera_device.openCamera(camera_index)
-        self.camera_device.startCamera(camera_index)
         if self.camera_link:
             print("[INFO]: Camera is initialized")
         else:
@@ -101,7 +88,7 @@ class Pepper:
         self.camera_device.unsubscribe(self.camera_link)
         print("[INFO]: Camera was unsubscribed")
 
-    def get_camera_frame(self, show=False):
+    def get_camera_frame(self, show):
         image_raw = self.camera_device.getImageRemote(self.camera_link)
         image = numpy.frombuffer(image_raw[6], numpy.uint8).reshape(image_raw[1], image_raw[0], image_raw[2])
         # image = cv2.flip(image, 0)
@@ -141,9 +128,9 @@ class Pepper:
         :param angles: list of angles for each joint
         :param fractionMaxSpeed: fraction of the maximum speed for joint motion, i.e. an integer (0-1)
         """
-        #self.motion_service.setStiffnesses("Head", 1.0)
+        #self.robot.setStiffnesses("Head", 1.0)
         # Example showing how to set angles, using a fraction of max speed
-        self.motion_service.setAngles(joints, angles, fractionMaxSpeed)
+        self.robot.setAngles(joints, angles, fractionMaxSpeed)
         
         # TODO: zmena dist
         
@@ -152,7 +139,7 @@ class Pepper:
             last_angles = [-100]*len(joints)
             while True:
                 time.sleep(0.1)
-                now_angles = self.motion_service.getAngles(joints, True)
+                now_angles = self.robot.getAngles(joints, True)
                 dist = 0
                 change = 0
                 for i in range(len(joints)):
@@ -165,6 +152,6 @@ class Pepper:
                     break
         
         #    print()
-            #self.motion_service.angleInterpolation(joints, angles, len(joints)*[end_time], True);
+            #self.robot.angleInterpolation(joints, angles, len(joints)*[end_time], True);
         #time.sleep(3.0)
         #motion_service.setStiffnesses("Head", 0.0)

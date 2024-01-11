@@ -10,61 +10,113 @@ import cv2
 import requests
 import copy
 import os
+import json
+import datetime
+import io
+from PIL import Image
+import keyboard
+import base64
+import pika
 
-def move_robot(robot, angles, hands, label=None):
-    if angles is not None:
-        body_angles_in_radians = [math.radians(x) for x in angles[:4]]
-        direction = []
-        direction.append(math.radians(0)) if int(angles[-2]) > 50 else direction.append(math.radians(180))
-        direction.append(math.radians(0)) if int(angles[-1]) > 50 else direction.append(math.radians(180))
-        body_angles_in_radians = direction + body_angles_in_radians
-        print(body_angles_in_radians)
-        robot.move_joint_by_angle(["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "LElbowRoll", "RShoulderRoll", "RElbowRoll"], body_angles_in_radians, 0.4)
-        time.sleep(.2)
-    if hands is not None:
-        robot.hand("left", int(hands[0]) > 50)
-        robot.hand("right", int(hands[1]) > 50)
+params = pika.URLParameters('amqp://zftppdhz:i4bn6ElyHC-AGgswO3czf3pulF6hpOjy@albatross.rmq.cloudamqp.com/zftppdhz')
+params.socket_timeout = 5
+# params.ssl_options.context
+
+
+connection = pika.BlockingConnection(params)
+rabbit_channel = connection.channel()
+rabbit_channel.queue_declare(queue='image_queue')
+
+crouch = False
+def move_robot(robot, angles):
+    for angle in angles:
+        if 'nan' in angle:
+            continue
+        if angle[-1] == -10:
+            global crouch
+            crouch = True
+            robot.crouch()
+            print(angle[:-2])
+            robot.move_joint_by_angle(["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "LElbowRoll", "RShoulderRoll", "RElbowRoll"], angle[:-2], 0.2)
+        else:
+            if crouch:
+                robot.stand()
+                crouch = False
+            robot.move_joint_by_angle(["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "LElbowRoll", "RShoulderRoll", "RElbowRoll", "LHipRoll", "RHipRoll"], angle, 0.2)
+        time.sleep(.5)
 
 def mimic(robot):
+    # video_file = 'video.mp4'
+    # cap = cv2.VideoCapture(video_file)
+    # angles = []
+
+    # while(cap.isOpened()):
+    #     start = datetime.datetime.now()
+    #     _, frame = cap.read()
+    #     if frame is None:
+    #         break
+
+    #     _, frame_encoded = cv2.imencode('.jpg', frame)
+    #     frame_bytes = frame_encoded.tobytes()
+    #     print("Sending to server after", str(datetime.datetime.now() - start))
+    #     data = requests.post('http://128.205.43.183:5006/imitate', files={'image': frame_bytes}).json()
+    #     angles.append(data['angles'])
+    #     print("Returned from server after", str(datetime.datetime.now() - start))
+
+    # with open("angles.json", "w") as f:
+    #     json.dump(angles, f)
+
+    # f = open("angles.json", "r")
+    # angles = json.load(f)
+
+    # LShoulderPitch radians -2.0857 to 2.0857 angles -119.5 to 119.5
+    # RShoulderPitch radians -2.0857 to 2.0857 angles -119.5 to 119.5
+    # LShoulderRoll radians 0.0087 to 1.5620 angles 0.5 to 89.5
+    # LElbowRoll radians -1.5620 to -0.0087 angles -89.5 to -0.5
+    # RShoulderRoll radians -1.5620 to -0.0087 angles -89.5 to -0.5
+    # RElbowRoll radians 0.0087 to 1.5620 angles 0.5 to 89.5
+    # move_robot(robot, angles)
+
     # for image in os.listdir('images/'):
-    #     print(image)
-    #     oriImg = cv2.imread('images/' + image)
-    #     _, image_encoded = cv2.imencode('.jpg', oriImg)
-    #     image_bytes = image_encoded.tobytes()
-    #     data = requests.post('http://128.205.43.183:5006/imitate', files={'image': image_bytes}).json()
-    #     angles = data['angles']
-    #     hands = data['hand']
-    #     count = 0
-    #     while count < 5:
-    #         move_robot(robot, angles, hands)
-    #         count += 1
+    #     if '.jpeg' in image or '.jpg' in image:
+    #         start = datetime.datetime.now()
+    #         print(image)
+    #         oriImg = cv2.imread('images/' + image)
+    #         _, image_encoded = cv2.imencode('.jpg', oriImg)
+    #         image_bytes = image_encoded.tobytes()
+    #         # data = requests.post('http://128.205.43.183:5006/imitate', files={'image': image_bytes}).json()
+    #         data = json.dumps({'image': image_bytes.encode('base64'), 'name': image.split('.')[0]})
+    #         rabbit_channel.basic_publish(exchange='', routing_key='image_queue', body=data)
+            # angles = data['angles']
+            # print(angles)
+            # print("ML time", str(datetime.datetime.now() - start))
+            # # count = 0
+            # # while count < 20:
+            # start = datetime.datetime.now()
+            # move_robot(robot, [angles])
+            # print("movement time", str(datetime.datetime.now() - start))
+                # count += 1
 
     # for robo cam
-    robot.subscribe_camera("camera_depth", 2, 30)
-    # cap = cv2.VideoCapture(0)
-    # cap.set(3, 640)
-    # cap.set(4, 480)
+    # cv2.namedWindow('video', cv2.WINDOW_NORMAL)
+    robot.subscribe_camera("camera_top", 1, 1)
     count = 1
     while True:
-        oriImg = robot.get_camera_frame(show=True)
-        oriImg = cv2.flip(oriImg, 0)
+        oriImg = robot.get_camera_frame(show=False)
+        count += 1
+        if count % 2 == 0 or count % 3 == 0:
+            continue
+        # cv2.resizeWindow('Continuous Image Display', oriImg.shape[0], oriImg.shape[1])
         _, image_encoded = cv2.imencode('.jpg', oriImg)
         image_bytes = image_encoded.tobytes()
-        # ret, oriImg = cap.read()
-        # _, image_encoded = cv2.imencode('.jpg', oriImg)
-        # image_bytes = image_encoded.tobytes()
-
-        # angles, hands = analyse_image(oriImg)
-        print("detecting")
-        data = requests.post('http://128.205.43.183:5006/imitate', files={'image': image_bytes}).json()
-        print(data)
-        angles = data['angles']
-        hands = data['hand']
-        # cv2.imshow("frame", oriImg)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
-        move_robot(robot, angles, hands)
+        # print("detecting")
+        data = json.dumps({'image': image_bytes.encode('base64'), 'name': 'test'})
+        rabbit_channel.basic_publish(exchange='', routing_key='image_queue', body=data)
+        # data = requests.post('http://128.205.43.183:5006/imitate', files={'image': image_bytes}).json()
         count += 1
+        if count > 500:
+            break
+
     robot.unsubscribe_camera()
 
 def get_robot(ip, port=9559):
@@ -74,12 +126,13 @@ def get_robot(ip, port=9559):
         print("Disabling the autonomous life")
         robot.autonomous_life_service.setState("disabled")
     robot.stand()
+    robot.move_joint_by_angle("HeadPitch", 0.2, 0.4)
     return robot
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     args = parser.parse_args()
-    robot = get_robot(ip="10.0.255.8")
+    robot = get_robot(ip="10.0.255.22") # Nao 10.0.255.22 Pepper 10.0.255.8
     record = False
     mimic(robot)
-    # robot.autonomous_life_on()
+    robot.autonomous_life_on()
